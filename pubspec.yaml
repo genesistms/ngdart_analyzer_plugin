@@ -1,0 +1,33 @@
+name: ngdart_analyzer_plugin
+description: Angular analyzer plugin
+version: 1.0.0
+repository: https://github.com/genesistms/ngdart_analyzer_plugin
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  analyzer: ^6.3.0
+  analyzer_plugin: ^0.11.3
+  # overriden from git
+  ngast: any
+  ngcompiler: any
+
+dev_dependencies:
+  test: ^1.25.1
+  lints: ^3.0.0
+
+dependency_overrides:
+  ngdart:
+    git:
+      url: https://github.com/angulardart-community/angular
+      path: ngdart
+  ngast:
+    git:
+      url: https://github.com/angulardart-community/angular
+      path: ngast
+  ngcompiler:
+    git:
+      url: https://github.com/angulardart-community/angular
+      path: ngcompiler

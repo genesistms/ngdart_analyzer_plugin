@@ -1,0 +1,25 @@
+name: ngdart_plugin
+version: 1.0.0
+description: Entrypoint package for ngdart analyzer plugin
+publis1_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  ngdart_analyzer_plugin:
+    git: https://github.com/genesistms/ngdart_analyzer_plugin
+
+dependency_overrides:
+  ngdart:
+    git:
+      url: https://github.com/angulardart-community/angular
+      path: ngdart
+  ngast:
+    git:
+      url: https://github.com/angulardart-community/angular
+      path: ngast
+  ngcompiler:
+    git:
+      url: https://github.com/angulardart-community/angular
+      path: ngcompiler
