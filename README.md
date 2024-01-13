@@ -1,6 +1,7 @@
 This project is attempt to revive archived angular analyzer plugin. While i am
-still looking at the old angular analyzer and how they did things, with changes
-in dart sdk and dart analyzer package i decided to go make it from scratch.
+still looking at the old angular analyzer and reuse/migrate usefull stuff, with
+changes in dart sdk and dart analyzer package i decided to go make it from
+scratch.
 
 My plan is to gradually update the plugin with new features until we get to the
 point where old angular analyzer was.
