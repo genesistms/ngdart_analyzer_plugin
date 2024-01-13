@@ -19,6 +19,32 @@ void main() {
     await plugin.afterNewContextCollection(contextCollection: collection);
     expect(channel.notifications.length, 0);
   });
+
+  test('Should report template errors as diagnostics', () async {
+    final resourceProvider = OverlayResourceProvider(PhysicalResourceProvider.INSTANCE);
+    final componentCode = '''
+      @Component(
+        template: '<div</div>',
+      )
+      class Example {}
+      ''';
+    final componentPath = resourceProvider.pathContext.absolute('component.dart');
+    resourceProvider.setOverlay(componentPath, content: componentCode, modificationStamp: 0);
+
+    final plugin = AngularPlugin(resourceProvider: resourceProvider);
+    final channel = SpyCommunicationChanngel();
+    plugin.start(channel);
+
+    await plugin.afterNewContextCollection(
+      contextCollection: AnalysisContextCollection(
+        includedPaths: [componentPath],
+        resourceProvider: resourceProvider,
+      ),
+    );
+
+    expect(channel.notifications.length, greaterThan(0));
+    expect(channel.notifications[0].event, 'analysis.errors');
+  });
 }
 
 class SpyCommunicationChanngel implements PluginCommunicationChannel {
