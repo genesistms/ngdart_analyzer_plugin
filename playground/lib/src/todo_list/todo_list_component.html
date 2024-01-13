@@ -1,0 +1,24 @@
+<div></div>
+
+<input
+  autofocus
+  type="text"
+  placeholder="Press <enter> to add an item"
+  (keydown.enter)="add($event.target.value)"
+/>
+
+<p *ngIf="items.isEmpty">Nothing to do! Add items above.</p>
+
+<div *ngIf="items.isNotEmpty">
+  <ul>
+    <li *ngFor="let item of items; let i=index">
+      <input
+        type="checkbox"
+        [attr.checked]="item.done ? '' : null"
+        (change)="toggle(i, $event.target.checked)"
+      />
+      <span [class.done]="item.done">{{item.value}}</span>
+      <button class="remove" (click)="remove(i)">remove</button>
+    </li>
+  </ul>
+</div>
