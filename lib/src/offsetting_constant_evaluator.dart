@@ -88,7 +88,6 @@ class OffsettingConstantEvaluator extends ast.ConstantEvaluator {
 
   @override
   Object? visitParenthesizedExpression(ast.ParenthesizedExpression node) {
-    offsetsAreValid = false;
     lastUnoffsettableNode = node;
     final preGap = node.expression.offset - node.offset;
     final postGap = node.offset + node.length - node.expression.offset - node.expression.length;
