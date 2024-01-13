@@ -1,7 +1,7 @@
 name: ngdart_plugin
 version: 1.0.0
 description: Entrypoint package for ngdart analyzer plugin
-publis1_to: none
+publish_to: none
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
