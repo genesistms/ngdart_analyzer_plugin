@@ -7,8 +7,7 @@ import 'package:analyzer_plugin/protocol/protocol.dart';
 import 'package:analyzer_plugin/protocol/protocol_common.dart';
 import 'package:analyzer_plugin/protocol/protocol_generated.dart';
 import 'package:ngast/ngast.dart' as ngast;
-
-import 'syntactic_discovery.dart' as syntactic;
+import 'package:ngdart_analyzer_plugin/src/syntactic_discovery.dart' as syntactic;
 
 void debug(PluginCommunicationChannel channel, String message, [String code = 'DEBUG']) {
   channel.sendNotification(PluginErrorParams(false, message, code).toNotification());
@@ -28,10 +27,12 @@ class AngularPlugin extends ServerPlugin {
 
   @override
   Future<void> analyzeFile({required AnalysisContext analysisContext, required String path}) async {
-    if (!path.endsWith('.dart')) {
-      return;
+    if (path.endsWith('.dart')) {
+      _analyzeDartFile(analysisContext: analysisContext, path: path);
     }
+  }
 
+  void _analyzeDartFile({required AnalysisContext analysisContext, required String path}) {
     final result = analysisContext.currentSession.getParsedUnit(path);
     if (result is! ParsedUnitResult) {
       return;
@@ -39,6 +40,7 @@ class AngularPlugin extends ServerPlugin {
 
     final analysisErrors = <String, List<AnalysisError>>{};
     analysisErrors[path] = [];
+
     for (final component in syntactic.findComponents(result.unit)) {
       final template = component.template;
       if (template != null) {
@@ -50,15 +52,15 @@ class AngularPlugin extends ServerPlugin {
           exceptionHandler: recoveringExceptionHandler,
         );
 
-        analysisErrors[path]?.addAll(recoveringExceptionHandler.exceptions.map((exception) {
-          return AnalysisError(
-            AnalysisErrorSeverity.ERROR,
-            AnalysisErrorType.SYNTACTIC_ERROR,
-            Location(path, template.range.offset + (exception.offset ?? 0), exception.length ?? 0, 0, 0),
-            exception.errorCode.message,
-            exception.errorCode.name,
-          );
-        }).toList(growable: false));
+        analysisErrors[path]?.addAll(recoveringExceptionHandler.exceptions
+            .map((exception) => AnalysisError(
+                  AnalysisErrorSeverity.ERROR,
+                  AnalysisErrorType.SYNTACTIC_ERROR,
+                  Location(path, template.range.offset + (exception.offset ?? 0), exception.length ?? 0, 0, 0),
+                  exception.errorCode.message,
+                  exception.errorCode.name,
+                ))
+            .toList(growable: false));
       }
 
       final templateUrl = component.templateUrl;
@@ -75,15 +77,15 @@ class AngularPlugin extends ServerPlugin {
             exceptionHandler: recoveringExceptionHandler,
           );
 
-          analysisErrors[templatePath] = recoveringExceptionHandler.exceptions.map((exception) {
-            return AnalysisError(
-              AnalysisErrorSeverity.ERROR,
-              AnalysisErrorType.SYNTACTIC_ERROR,
-              Location(templatePath, exception.offset ?? 0, exception.length ?? 0, 0, 0),
-              exception.errorCode.message,
-              exception.errorCode.name,
-            );
-          }).toList(growable: false);
+          analysisErrors[templatePath] = recoveringExceptionHandler.exceptions
+              .map((exception) => AnalysisError(
+                    AnalysisErrorSeverity.ERROR,
+                    AnalysisErrorType.SYNTACTIC_ERROR,
+                    Location(templatePath, exception.offset ?? 0, exception.length ?? 0, 0, 0),
+                    exception.errorCode.message,
+                    exception.errorCode.name,
+                  ))
+              .toList(growable: false);
         } on PathNotFoundException catch (_) {
           // TODO(tms): report file does not exists
         }
