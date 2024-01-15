@@ -7,42 +7,81 @@ import 'package:ngdart_analyzer_plugin/src/plugin.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('Initial notifications after new context', () async {
-    final resourceProvider = OverlayResourceProvider(PhysicalResourceProvider.INSTANCE);
-    final channel = SpyCommunicationChanngel();
-    final plugin = AngularPlugin(resourceProvider: resourceProvider)..start(channel);
+  late SpyCommunicationChanngel channel;
+  late AngularPlugin plugin;
 
-    final collection = AnalysisContextCollection(
-      includedPaths: [],
-      resourceProvider: resourceProvider,
+  setUp(() {
+    plugin = AngularPlugin(
+      resourceProvider: OverlayResourceProvider(PhysicalResourceProvider.INSTANCE),
     );
-    await plugin.afterNewContextCollection(contextCollection: collection);
+    channel = SpyCommunicationChanngel();
+    plugin.start(channel);
+  });
+
+  String newFile(String content, {required String relativePath}) {
+    final path = plugin.resourceProvider.pathContext.absolute(relativePath);
+    plugin.resourceProvider.setOverlay(path, content: content, modificationStamp: 0);
+    return path;
+  }
+
+  test('Should send no notifications without analyzing', () async {
+    await plugin.afterNewContextCollection(
+      contextCollection: AnalysisContextCollection(
+        includedPaths: [],
+        resourceProvider: plugin.resourceProvider,
+      ),
+    );
     expect(channel.notifications.length, 0);
   });
 
-  test('Should report template errors as diagnostics', () async {
-    final resourceProvider = OverlayResourceProvider(PhysicalResourceProvider.INSTANCE);
-    final componentCode = '''
+  test('Should report inline template errors as diagnostics', () async {
+    String componentPath = newFile(
+      relativePath: 'component.dart',
+      '''
       @Component(
         template: '<div</div>',
       )
       class Example {}
-      ''';
-    final componentPath = resourceProvider.pathContext.absolute('component.dart');
-    resourceProvider.setOverlay(componentPath, content: componentCode, modificationStamp: 0);
-
-    final plugin = AngularPlugin(resourceProvider: resourceProvider);
-    final channel = SpyCommunicationChanngel();
-    plugin.start(channel);
+      ''',
+    );
 
     await plugin.afterNewContextCollection(
       contextCollection: AnalysisContextCollection(
         includedPaths: [componentPath],
-        resourceProvider: resourceProvider,
+        resourceProvider: plugin.resourceProvider,
       ),
     );
 
-    expect(channel.notifications.length, greaterThan(0));
+    expect(channel.notifications.length, 1);
+    expect(channel.notifications[0].event, 'analysis.errors');
+  });
+
+  test('Should report external template errors as diagnostics', () async {
+    final componentPath = newFile(
+      relativePath: 'component.dart',
+      '''
+      @Component(
+        templateUrl: 'component.html',
+      )
+      class Example {}
+      ''',
+    );
+
+    newFile(
+      relativePath: 'component.html',
+      '''
+      <div</div>
+    ''',
+    );
+
+    await plugin.afterNewContextCollection(
+      contextCollection: AnalysisContextCollection(
+        includedPaths: [componentPath],
+        resourceProvider: plugin.resourceProvider,
+      ),
+    );
+
+    expect(channel.notifications.length, 1);
     expect(channel.notifications[0].event, 'analysis.errors');
   });
 }
