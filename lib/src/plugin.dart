@@ -77,10 +77,8 @@ class AngularPlugin extends ServerPlugin {
     //
     // we need to analyze it here because when analyzer sent us this file we
     // didn't have its component pair
-    for (final templatePath in templateUrlPaths) {
-      if (_waitingHtmlFiles.contains(templatePath)) {
-        _analyzeHtml(analysisContext: analysisContext, path: templatePath);
-      }
+    for (final templatePath in templateUrlPaths.where(_waitingHtmlFiles.contains)) {
+      _analyzeHtml(analysisContext: analysisContext, path: templatePath);
     }
 
     analysisErrors.forEach((path, errors) {
