@@ -134,4 +134,9 @@ class SpyCommunicationChanngel implements PluginCommunicationChannel {
   void sendResponse(Response response) {
     responses.add(response);
   }
+
+  void spyReset() {
+    notifications.clear();
+    responses.clear();
+  }
 }
