@@ -1,12 +1,12 @@
 import 'package:analyzer/dart/analysis/analysis_context.dart';
 import 'package:analyzer/dart/analysis/results.dart';
-import 'package:analyzer/file_system/file_system.dart';
 import 'package:analyzer_plugin/channel/channel.dart';
 import 'package:analyzer_plugin/plugin/plugin.dart';
 import 'package:analyzer_plugin/protocol/protocol.dart';
 import 'package:analyzer_plugin/protocol/protocol_common.dart';
 import 'package:analyzer_plugin/protocol/protocol_generated.dart';
 import 'package:ngast/ngast.dart' as ngast;
+import 'package:ngdart_analyzer_plugin/src/file_tracker.dart';
 import 'package:ngdart_analyzer_plugin/src/syntactic_discovery.dart' as syntactic;
 
 void debug(PluginCommunicationChannel channel, String message, [String code = 'DEBUG']) {
@@ -17,7 +17,7 @@ class AngularPlugin extends ServerPlugin {
   AngularPlugin({required super.resourceProvider});
 
   @override
-  final fileGlobsToAnalyze = ['**/*.dart'];
+  final fileGlobsToAnalyze = ['**/*.dart', '**/*.html'];
 
   @override
   final name = 'Angular plugin';
@@ -25,14 +25,19 @@ class AngularPlugin extends ServerPlugin {
   @override
   final version = '1.0.0';
 
+  final fileTracker = FileTracker();
+  final _waitingHtmlFiles = <String>{};
+
   @override
   Future<void> analyzeFile({required AnalysisContext analysisContext, required String path}) async {
     if (path.endsWith('.dart')) {
-      _analyzeDartFile(analysisContext: analysisContext, path: path);
+      _analyzeDart(analysisContext: analysisContext, path: path);
+    } else if (path.endsWith('.html')) {
+      _analyzeHtml(analysisContext: analysisContext, path: path);
     }
   }
 
-  void _analyzeDartFile({required AnalysisContext analysisContext, required String path}) {
+  void _analyzeDart({required AnalysisContext analysisContext, required String path}) {
     final result = analysisContext.currentSession.getParsedUnit(path);
     if (result is! ParsedUnitResult) {
       return;
@@ -41,54 +46,40 @@ class AngularPlugin extends ServerPlugin {
     final analysisErrors = <String, List<AnalysisError>>{};
     analysisErrors[path] = [];
 
+    var hasTemplate = false;
+    final templateUrlPaths = <String>{};
     for (final component in syntactic.findComponents(result.unit)) {
       final template = component.template;
       if (template != null) {
-        final recoveringExceptionHandler = ngast.RecoveringExceptionHandler();
-        ngast.parse(
-          template.value,
-          sourceUrl: path,
-          desugar: false,
-          exceptionHandler: recoveringExceptionHandler,
-        );
+        hasTemplate = true;
+        final templateErrors = _validateHtml(path, template.value, offset: template.range.offset);
+        analysisErrors[path]?.addAll(templateErrors);
+      }
 
-        analysisErrors[path]?.addAll(recoveringExceptionHandler.exceptions
-            .map((exception) => AnalysisError(
-                  AnalysisErrorSeverity.ERROR,
-                  AnalysisErrorType.SYNTACTIC_ERROR,
-                  Location(path, template.range.offset + (exception.offset ?? 0), exception.length ?? 0, 0, 0),
-                  exception.errorCode.message,
-                  exception.errorCode.name,
-                ))
-            .toList(growable: false));
+      // clear analysis for templates that may not be linked anymore
+      //
+      // in cases where user removed `templateUrl` from annotation
+      for (final tp in fileTracker.getHtmlPathsReferencedByDart(path)) {
+        analysisErrors[tp] = [];
       }
 
       final templateUrl = component.templateUrl;
       if (templateUrl != null) {
-        try {
-          final templatePath = Uri.file(path).resolve(templateUrl.value).toFilePath();
-          final templateFile = resourceProvider.getFile(templatePath);
+        final templatePath = Uri.file(path).resolve(templateUrl.value).toFilePath();
+        templateUrlPaths.add(templatePath);
+      }
+    }
 
-          final recoveringExceptionHandler = ngast.RecoveringExceptionHandler();
-          ngast.parse(
-            templateFile.readAsStringSync(),
-            sourceUrl: templatePath,
-            desugar: false,
-            exceptionHandler: recoveringExceptionHandler,
-          );
+    fileTracker.setDartHasTemplate(path, hasTemplate);
+    fileTracker.setDartHtmlTemplates(path, templateUrlPaths.toList());
 
-          analysisErrors[templatePath] = recoveringExceptionHandler.exceptions
-              .map((exception) => AnalysisError(
-                    AnalysisErrorSeverity.ERROR,
-                    AnalysisErrorType.SYNTACTIC_ERROR,
-                    Location(templatePath, exception.offset ?? 0, exception.length ?? 0, 0, 0),
-                    exception.errorCode.message,
-                    exception.errorCode.name,
-                  ))
-              .toList(growable: false);
-        } on PathNotFoundException catch (_) {
-          // TODO(tms): report file does not exists
-        }
+    // check if template file is waiting for its component pair
+    //
+    // we need to analyze it here because when analyzer sent us this file we
+    // didn't have its component pair
+    for (final templatePath in templateUrlPaths) {
+      if (_waitingHtmlFiles.contains(templatePath)) {
+        _analyzeHtml(analysisContext: analysisContext, path: templatePath);
       }
     }
 
@@ -101,4 +92,53 @@ class AngularPlugin extends ServerPlugin {
       channel.sendNotification(AnalysisErrorsParams(path, errors).toNotification());
     });
   }
+
+  void _analyzeHtml({required AnalysisContext analysisContext, required String path}) {
+    final analysisErrors = <String, List<AnalysisError>>{};
+    analysisErrors[path] = [];
+
+    try {
+      final file = resourceProvider.getFile(path);
+      final isReferenced = fileTracker.getDartPathsReferencingHtml(path).isNotEmpty;
+      if (!isReferenced) {
+        _waitingHtmlFiles.add(path);
+        return;
+      }
+
+      analysisErrors[path] = _validateHtml(path, file.readAsStringSync());
+    } catch (_) {
+      // ignore
+    }
+
+    analysisErrors.forEach((path, errors) {
+      if (errors.isEmpty) {
+        channel.sendNotification(Notification('analysis.errors', {'file': path, 'errors': []}));
+        return;
+      }
+
+      channel.sendNotification(AnalysisErrorsParams(path, errors).toNotification());
+    });
+  }
+}
+
+List<AnalysisError> _validateHtml(String path, String content, {int offset = 0}) {
+  final recoveringExceptionHandler = ngast.RecoveringExceptionHandler();
+  ngast.parse(
+    content,
+    sourceUrl: path,
+    desugar: false,
+    exceptionHandler: recoveringExceptionHandler,
+  );
+
+  return recoveringExceptionHandler.exceptions
+      .map(
+        (exception) => AnalysisError(
+          AnalysisErrorSeverity.ERROR,
+          AnalysisErrorType.SYNTACTIC_ERROR,
+          Location(path, offset + (exception.offset ?? 0), exception.length ?? 0, 0, 0),
+          exception.errorCode.message,
+          exception.errorCode.name,
+        ),
+      )
+      .toList(growable: false);
 }
