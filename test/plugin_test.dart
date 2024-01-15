@@ -81,8 +81,37 @@ void main() {
       ),
     );
 
+    expect(channel.notifications.length, 2);
+    expect(channel.notifications[0].event, 'analysis.errors');
+    expect(channel.notifications[0].params?['errors'], isEmpty);
+  });
+
+  test('Should report external template errors as diagnostics for each component', () async {
+    final componentAPath = newFile(
+      relativePath: 'component.dart',
+      '''
+      @Component(
+        template: '<div</div>',
+      )
+      class ExampleA {}
+
+      @Component(
+        template: '<p</p>',
+      )
+      class ExampleB {}
+      ''',
+    );
+
+    await plugin.afterNewContextCollection(
+      contextCollection: AnalysisContextCollection(
+        includedPaths: [componentAPath],
+        resourceProvider: plugin.resourceProvider,
+      ),
+    );
+
     expect(channel.notifications.length, 1);
     expect(channel.notifications[0].event, 'analysis.errors');
+    expect((channel.notifications[0].params?['errors'] as List).length, 2);
   });
 }
 

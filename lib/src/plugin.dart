@@ -38,6 +38,7 @@ class AngularPlugin extends ServerPlugin {
     }
 
     final analysisErrors = <String, List<AnalysisError>>{};
+    analysisErrors[path] = [];
     for (final component in syntactic.findComponents(result.unit)) {
       final template = component.template;
       if (template != null) {
@@ -49,7 +50,7 @@ class AngularPlugin extends ServerPlugin {
           exceptionHandler: recoveringExceptionHandler,
         );
 
-        analysisErrors[path] = recoveringExceptionHandler.exceptions.map((exception) {
+        analysisErrors[path]?.addAll(recoveringExceptionHandler.exceptions.map((exception) {
           return AnalysisError(
             AnalysisErrorSeverity.ERROR,
             AnalysisErrorType.SYNTACTIC_ERROR,
@@ -57,7 +58,7 @@ class AngularPlugin extends ServerPlugin {
             exception.errorCode.message,
             exception.errorCode.name,
           );
-        }).toList(growable: false);
+        }).toList(growable: false));
       }
 
       final templateUrl = component.templateUrl;
