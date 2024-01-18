@@ -27,4 +27,7 @@ analyzer:
 
 ## Features
 
+For now the plugin reports errors from parsing html templates and some other
+simple reports like empty selectors and so on.
+
 For what's currently supported, see `CURRENT_SUPPORT.md`.
