@@ -2,48 +2,71 @@ import 'package:analyzer/dart/ast/ast.dart' as ast;
 import 'package:analyzer/src/dart/ast/utilities.dart' as ast;
 import 'package:analyzer/source/source_range.dart';
 import 'package:collection/collection.dart';
+import 'package:ngdart_analyzer_plugin/src/errors.dart';
 import 'package:ngdart_analyzer_plugin/src/syntactic/component.dart' as syntactic;
 
 import 'offsetting_constant_evaluator.dart';
 
-List<syntactic.Component> findComponents(ast.CompilationUnit unit) {
-  return unit.declarations.whereType<ast.ClassDeclaration>().map(findComponent).whereNotNull().toList();
+Iterable<(syntactic.Component, List<AngularWarning>?)> findComponents(ast.CompilationUnit unit) sync* {
+  final components = unit.declarations.whereType<ast.ClassDeclaration>().map(findComponent);
+  for (final (component, errors) in components) {
+    if (component == null) {
+      continue;
+    }
+
+    yield (component, errors);
+  }
 }
 
-syntactic.Component? findComponent(ast.ClassDeclaration declaration) {
+(syntactic.Component?, List<AngularWarning>?) findComponent(ast.ClassDeclaration declaration) {
   final annotation = declaration.metadata.firstWhereOrNull((m) => m.name.name == 'Component');
   if (annotation == null) {
-    return null;
+    return (null, null);
   }
 
-  final template = findTemplate(annotation);
-  final (templateUrl, _) = findTemplateUrl(annotation);
+  final errors = <AngularWarning>[];
 
-  return syntactic.Component(
-    template: template,
-    templateUrl: templateUrl,
+  final (template, templateErrors) = findTemplate(annotation);
+  if (templateErrors != null) {
+    errors.addAll(templateErrors);
+  }
+
+  final (templateUrl, templateUrlErrors) = findTemplateUrl(annotation);
+  if (templateUrlErrors != null) {
+    errors.addAll(templateUrlErrors);
+  }
+
+  return (
+    syntactic.Component(
+      template: template,
+      templateUrl: templateUrl,
+    ),
+    errors
   );
 }
 
-syntactic.Template? findTemplate(ast.Annotation annotation) {
+(syntactic.Template?, List<AngularWarning>?) findTemplate(ast.Annotation annotation) {
   final expression = findNamedArgument(annotation, 'template');
   if (expression == null) {
-    return null;
+    return (null, null);
   }
 
   final evaluator = OffsettingConstantEvaluator();
   evaluator.value = expression.accept(evaluator);
   if (!evaluator.offsetsAreValid || evaluator.value is! String) {
-    return null;
+    return (null, null);
   }
 
-  return syntactic.Template(
-    evaluator.value as String,
-    SourceRange(expression.offset, expression.length),
+  return (
+    syntactic.Template(
+      evaluator.value as String,
+      SourceRange(expression.offset, expression.length),
+    ),
+    null
   );
 }
 
-(syntactic.TemplateUrl?, String?) findTemplateUrl(ast.Annotation annotation) {
+(syntactic.TemplateUrl?, List<AngularWarning>?) findTemplateUrl(ast.Annotation annotation) {
   final expression = findNamedArgument(annotation, 'templateUrl');
   if (expression == null) {
     return (null, null);
@@ -52,7 +75,7 @@ syntactic.Template? findTemplate(ast.Annotation annotation) {
   final evaluator = ast.ConstantEvaluator();
   final text = expression.accept(evaluator);
   if (text is! String) {
-    return (null, 'string expected');
+    return (null, null);
   }
 
   return (

@@ -4,7 +4,7 @@ import 'helpers.dart';
 
 void main() {
   test('template:', () {
-    final component = singleComponentParse(
+    final (component, errors) = singleComponentParse(
       '''
       @Component(
         template: '<div></div>',
@@ -13,6 +13,7 @@ void main() {
       ''',
     );
 
+    expect(errors, null);
     expect(component.templateUrl, isNull);
     expect(component.template, isNotNull);
     // spaces added because text is offsetted
@@ -20,7 +21,7 @@ void main() {
   });
 
   test('templateUrl:', () {
-    final component = singleComponentParse(
+    final (component, errors) = singleComponentParse(
       '''
       @Component(
         templateUrl: 'component.html',
@@ -29,6 +30,7 @@ void main() {
       ''',
     );
 
+    expect(errors, null);
     expect(component.template, isNull);
     expect(component.templateUrl, isNotNull);
     expect(component.templateUrl?.value, 'component.html');

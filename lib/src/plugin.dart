@@ -49,7 +49,7 @@ class AngularPlugin extends ServerPlugin {
 
     var hasTemplate = false;
     final templateUrlPaths = <String>{};
-    for (final component in syntactic.findComponents(result.unit)) {
+    for (final (component, errors) in syntactic.findComponents(result.unit)) {
       final template = component.template;
       if (template != null) {
         hasTemplate = true;

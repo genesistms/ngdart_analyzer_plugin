@@ -2,11 +2,12 @@ import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/file_system/overlay_file_system.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
+import 'package:ngdart_analyzer_plugin/src/errors.dart';
 import 'package:ngdart_analyzer_plugin/src/syntactic/component.dart' as syntactic;
 import 'package:ngdart_analyzer_plugin/src/syntactic_discovery.dart' as syntactic;
 import 'package:test/test.dart';
 
-syntactic.Component singleComponentParse(String componentCode) {
+(syntactic.Component, List<AngularWarning>?) singleComponentParse(String componentCode) {
   final resourceProvider = OverlayResourceProvider(PhysicalResourceProvider.INSTANCE);
   final path = resourceProvider.pathContext.absolute('file.dart');
   resourceProvider.setOverlay(path, content: componentCode, modificationStamp: 0);
