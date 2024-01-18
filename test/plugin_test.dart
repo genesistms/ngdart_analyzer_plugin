@@ -154,6 +154,35 @@ void main() {
     expect(channel.errors[componentPath]?.length, 1);
     expect(channel.errors[componentPath]?[0].code, AngularWarningCode.referencedHtmlFileDoesntExist.name);
   });
+
+  test('hasError_TemplateAndTemplateUrlDefined', () async {
+    final paths = await initContext({
+      'component.dart': r'''
+      import 'package:angular/angular.dart';
+
+      @Component(selector: 'example', template: '<div></div>', templateUrl: 'component.html')
+      class Example {
+      }
+      ''',
+      'component.html': '<div></div>',
+    });
+    expect(channel.errors[paths['component.dart']]?.length, 2);
+    expect(channel.errors[paths['component.dart']]?[0].code, AngularWarningCode.templateUrlAndTemplateDefined.name);
+  });
+
+  test('hasError_NeitherTemplateNorTemplateUrlDefined', () async {
+    final paths = await initContext({
+      'component.dart': r'''
+      import 'package:angular/angular.dart';
+
+      @Component(selector: 'example')
+      class Example {
+      }
+      ''',
+    });
+    expect(channel.errors[paths['component.dart']]?.length, 1);
+    expect(channel.errors[paths['component.dart']]?[0].code, AngularWarningCode.noTemplateUrlOrTemplateDefined.name);
+  });
 }
 
 class SpyCommunicationChanngel implements PluginCommunicationChannel {

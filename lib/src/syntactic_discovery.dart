@@ -36,6 +36,28 @@ Iterable<(syntactic.Component, List<AngularWarning>?)> findComponents(ast.Compil
     errors.addAll(templateUrlErrors);
   }
 
+  if (template != null && templateUrl != null) {
+    errors.addAll([
+      AngularWarning(
+        code: AngularWarningCode.templateUrlAndTemplateDefined,
+        range: template.range,
+      ),
+      AngularWarning(
+        code: AngularWarningCode.templateUrlAndTemplateDefined,
+        range: templateUrl.range,
+      ),
+    ]);
+  }
+
+  if (template == null && templateUrl == null) {
+    errors.add(
+      AngularWarning(
+        code: AngularWarningCode.noTemplateUrlOrTemplateDefined,
+        range: SourceRange(annotation.offset, annotation.length),
+      ),
+    );
+  }
+
   return (
     syntactic.Component(
       template: template,
