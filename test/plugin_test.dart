@@ -59,7 +59,7 @@ void main() {
       ''',
     });
 
-    expect(channel.errors.length, 1);
+    expect(channel.errors[paths['component.dart']]?.length, 1);
     expect(channel.errors[paths['component.dart']]?[0].code, ngast.ParserErrorCode.expectedAfterElementIdentifier.name);
   });
 
@@ -76,7 +76,7 @@ void main() {
     final componentPath = paths['component.dart'];
     final templatePath = paths['component.html'];
 
-    expect(channel.errors.length, 1);
+    expect(channel.errors.keys, [templatePath]);
     expect(channel.errors[componentPath], null);
     expect(channel.errors[templatePath]?.length, 1);
     expect(channel.errors[templatePath]?[0].code, ngast.ParserErrorCode.expectedAfterElementIdentifier.name);
@@ -94,7 +94,7 @@ void main() {
     });
     final templatePath = paths['component.html']!;
 
-    expect(channel.errors.length, 0);
+    expect(channel.errors[templatePath], null);
 
     // still we send empty errors to reset analysis on this file
     // maybe we should hold a map of files that were not analyzed yet
@@ -113,7 +113,7 @@ void main() {
       ),
     );
 
-    expect(channel.errors.length, 1);
+    expect(channel.errors[templatePath]?.length, 1);
     expect(channel.errors[templatePath]?[0].code, ngast.ParserErrorCode.expectedAfterElementIdentifier.name);
   });
 
@@ -132,8 +132,9 @@ void main() {
       '''
     });
 
-    expect(channel.errors.length, 1);
-    expect(channel.errors.values.expand((e) => e).map((e) => e.code), [
+    final allErrors = channel.errors.values.expand((e) => e);
+    expect(allErrors.length, 2);
+    expect(allErrors.map((e) => e.code), [
       ngast.ParserErrorCode.expectedAfterElementIdentifier.name,
       ngast.ParserErrorCode.expectedAfterElementIdentifier.name,
     ]);
@@ -150,7 +151,7 @@ void main() {
     });
     final componentPath = paths['component.dart'];
 
-    expect(channel.errors.length, 1);
+    expect(channel.errors[componentPath]?.length, 1);
     expect(channel.errors[componentPath]?[0].code, AngularWarningCode.referencedHtmlFileDoesntExist.name);
   });
 }
