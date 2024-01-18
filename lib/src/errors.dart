@@ -1,3 +1,5 @@
+import 'package:analyzer/source/source_range.dart';
+
 enum AngularWarningCode {
   /// An error for when the provided selector cannot be parsed.
   cannotParseSelector('Cannot parse the given selector ({0})'),
@@ -16,4 +18,13 @@ enum AngularWarningCode {
   final String message;
 
   const AngularWarningCode(this.message);
+}
+
+class AngularWarning {
+  final AngularWarningCode code;
+  final SourceRange range;
+  AngularWarning({
+    required this.code,
+    required this.range,
+  });
 }
