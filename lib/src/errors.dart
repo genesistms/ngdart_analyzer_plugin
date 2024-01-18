@@ -1,7 +1,4 @@
 enum AngularWarningCode {
-  /// An error for when a directive does not define a "selector".
-  argumentSelectorMissing('Argument "selector" missing'),
-
   /// An error for when the provided selector cannot be parsed.
   cannotParseSelector('Cannot parse the given selector ({0})'),
 
