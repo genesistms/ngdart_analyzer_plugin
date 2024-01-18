@@ -4,6 +4,8 @@ import 'package:analyzer_plugin/channel/channel.dart';
 import 'package:analyzer_plugin/protocol/protocol.dart';
 import 'package:analyzer_plugin/protocol/protocol_common.dart';
 import 'package:analyzer_plugin/protocol/protocol_generated.dart';
+import 'package:ngast/ngast.dart' as ngast;
+import 'package:ngdart_analyzer_plugin/src/errors.dart';
 import 'package:ngdart_analyzer_plugin/src/plugin.dart';
 import 'package:test/test.dart';
 
@@ -42,13 +44,13 @@ void main() {
     return result;
   }
 
-  test('Should send no notifications without analyzing', () async {
+  test('Should report no errors without any file', () async {
     await initContext();
-    expect(channel.notifications.length, 0);
+    expect(channel.errors.length, 0);
   });
 
-  test('Should report inline template errors as diagnostics', () async {
-    await initContext({
+  test('Should report parser errors for inline template', () async {
+    final paths = await initContext({
       'component.dart': '''
       @Component(
         template: '<div</div>',
@@ -56,11 +58,12 @@ void main() {
       class Example {}
       ''',
     });
-    expect(channel.notifications.length, 1);
-    expect(channel.notifications[0].event, 'analysis.errors');
+
+    expect(channel.errors.length, 1);
+    expect(channel.errors[paths['component.dart']]?[0].code, ngast.ParserErrorCode.expectedAfterElementIdentifier.name);
   });
 
-  test('Should report external template errors as diagnostics', () async {
+  test('Should report template errors for external file', () async {
     final paths = await initContext({
       'component.dart': '''
       @Component(
@@ -70,16 +73,13 @@ void main() {
       ''',
       'component.html': '<div</div>',
     });
+    final componentPath = paths['component.dart'];
+    final templatePath = paths['component.html'];
 
-    expect(channel.notifications.length, 2);
-
-    final componentNotification = channel.notifications.firstWhere((n) => n.params?['file'] == paths['component.dart']);
-    expect(componentNotification.event, 'analysis.errors');
-    expect(componentNotification.params?['errors'], isEmpty);
-
-    final templateNotification = channel.notifications.firstWhere((n) => n.params?['file'] == paths['component.html']);
-    expect(templateNotification.event, 'analysis.errors');
-    expect(templateNotification.params?['errors'], isNotEmpty);
+    expect(channel.errors.length, 1);
+    expect(channel.errors[componentPath], null);
+    expect(channel.errors[templatePath]?.length, 1);
+    expect(channel.errors[templatePath]?[0].code, ngast.ParserErrorCode.expectedAfterElementIdentifier.name);
   });
 
   test('Should report after update content', () async {
@@ -94,11 +94,16 @@ void main() {
     });
     final templatePath = paths['component.html']!;
 
+    expect(channel.errors.length, 0);
+
+    // still we send empty errors to reset analysis on this file
+    // maybe we should hold a map of files that were not analyzed yet
     expect(channel.notifications.length, 2);
     expect(channel.notifications[0].event, 'analysis.errors');
     expect(channel.notifications[0].params?['errors'], isEmpty);
     expect(channel.notifications[1].event, 'analysis.errors');
     expect(channel.notifications[1].params?['errors'], isEmpty);
+
     channel.spyReset();
 
     await plugin.handleAnalysisSetPriorityFiles(AnalysisSetPriorityFilesParams([templatePath]));
@@ -108,8 +113,8 @@ void main() {
       ),
     );
 
-    expect(channel.notifications.length, 1);
-    expect(channel.notifications.first.params?['errors'], isNotEmpty);
+    expect(channel.errors.length, 1);
+    expect(channel.errors[templatePath]?[0].code, ngast.ParserErrorCode.expectedAfterElementIdentifier.name);
   });
 
   test('Should report external template errors as diagnostics for each component', () async {
@@ -127,14 +132,20 @@ void main() {
       '''
     });
 
-    expect(channel.notifications.length, 1);
-    expect(channel.notifications[0].event, 'analysis.errors');
-    expect((channel.notifications[0].params?['errors'] as List).length, 2);
+    expect(channel.errors.length, 1);
+    expect(channel.errors.values.expand((e) => e).map((e) => e.code), [
+      ngast.ParserErrorCode.expectedAfterElementIdentifier.name,
+      ngast.ParserErrorCode.expectedAfterElementIdentifier.name,
+    ]);
+  });
+
   });
 }
 
 class SpyCommunicationChanngel implements PluginCommunicationChannel {
   final notifications = <Notification>[];
+  final errors = <String, List<AnalysisError>>{};
+
   final responses = <Response>[];
 
   @override
@@ -146,6 +157,14 @@ class SpyCommunicationChanngel implements PluginCommunicationChannel {
   @override
   void sendNotification(Notification notification) {
     notifications.add(notification);
+    if (notification.event == 'analysis.errors') {
+      final errorParams = AnalysisErrorsParams.fromNotification(notification);
+      if (errorParams.errors.isEmpty) {
+        return;
+      }
+
+      errors[errorParams.file] = errorParams.errors;
+    }
   }
 
   @override
