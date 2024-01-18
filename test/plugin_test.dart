@@ -139,6 +139,19 @@ void main() {
     ]);
   });
 
+  test('Should report referenced template does not exists', () async {
+    final paths = await initContext({
+      'component.dart': '''
+      @Component(
+        templateUrl: 'non-existent.html',
+      )
+      class ExampleA {}
+      '''
+    });
+    final componentPath = paths['component.dart'];
+
+    expect(channel.errors.length, 1);
+    expect(channel.errors[componentPath]?[0].code, AngularWarningCode.referencedHtmlFileDoesntExist.name);
   });
 }
 

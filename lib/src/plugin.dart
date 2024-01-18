@@ -6,6 +6,7 @@ import 'package:analyzer_plugin/protocol/protocol.dart';
 import 'package:analyzer_plugin/protocol/protocol_common.dart';
 import 'package:analyzer_plugin/protocol/protocol_generated.dart';
 import 'package:ngast/ngast.dart' as ngast;
+import 'package:ngdart_analyzer_plugin/src/errors.dart';
 import 'package:ngdart_analyzer_plugin/src/file_tracker.dart';
 import 'package:ngdart_analyzer_plugin/src/syntactic_discovery.dart' as syntactic;
 
@@ -67,6 +68,17 @@ class AngularPlugin extends ServerPlugin {
       if (templateUrl != null) {
         final templatePath = Uri.file(path).resolve(templateUrl.value).toFilePath();
         templateUrlPaths.add(templatePath);
+        if (!resourceProvider.getFile(templatePath).exists) {
+          analysisErrors[path]?.add(
+            AnalysisError(
+              AnalysisErrorSeverity.WARNING,
+              AnalysisErrorType.STATIC_WARNING,
+              Location(path, templateUrl.range.offset, templateUrl.range.length, 0, 0),
+              AngularWarningCode.referencedHtmlFileDoesntExist.message,
+              AngularWarningCode.referencedHtmlFileDoesntExist.name,
+            ),
+          );
+        }
       }
     }
 
