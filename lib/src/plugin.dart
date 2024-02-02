@@ -57,7 +57,7 @@ class AngularPlugin extends ServerPlugin {
               AnalysisErrorSeverity.WARNING,
               AnalysisErrorType.STATIC_WARNING,
               Location(path, error.range.offset, error.range.length, 0, 0),
-              error.code.message,
+              error.message(),
               error.code.name,
             ),
           ),

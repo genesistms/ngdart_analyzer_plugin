@@ -23,8 +23,19 @@ enum AngularWarningCode {
 class AngularWarning {
   final AngularWarningCode code;
   final SourceRange range;
+  final List<String> arguments;
   AngularWarning({
     required this.code,
     required this.range,
+    this.arguments = const [],
   });
+
+  String message() {
+    var msg = code.message;
+    for (var i = 0; i < arguments.length; i++) {
+      final arg = arguments[i];
+      msg = msg.replaceAll('{$i}', arg);
+    }
+    return msg;
+  }
 }
