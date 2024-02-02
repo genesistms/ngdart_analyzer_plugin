@@ -13,7 +13,7 @@ void main() {
       ''',
     );
 
-    expect(errors, null);
+    expect(errors, isEmpty);
     expect(component.templateUrl, isNull);
     expect(component.template, isNotNull);
     // spaces added because text is offsetted
@@ -30,7 +30,7 @@ void main() {
       ''',
     );
 
-    expect(errors, null);
+    expect(errors, isEmpty);
     expect(component.template, isNull);
     expect(component.templateUrl, isNotNull);
     expect(component.templateUrl?.value, 'component.html');
