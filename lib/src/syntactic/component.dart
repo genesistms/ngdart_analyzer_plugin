@@ -1,4 +1,5 @@
 import 'package:analyzer/source/source_range.dart';
+import 'package:ngdart_analyzer_plugin/src/selector/selector.dart';
 
 /// Syntactic model of an Angular component.
 ///
@@ -34,9 +35,11 @@ import 'package:analyzer/source/source_range.dart';
 /// Note that the syntactic model of a component only includes its inline
 /// [NgContent]s. See [ngContent]/README.md for more information.
 class Component {
+  final Selector? selector;
   final Template? template;
   final TemplateUrl? templateUrl;
   Component({
+    this.selector,
     this.template,
     this.templateUrl,
   });

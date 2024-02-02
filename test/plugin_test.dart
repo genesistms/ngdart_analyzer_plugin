@@ -183,6 +183,20 @@ void main() {
     expect(channel.errors[paths['component.dart']]?.length, 1);
     expect(channel.errors[paths['component.dart']]?[0].code, AngularWarningCode.noTemplateUrlOrTemplateDefined.name);
   });
+
+  test('hasError_SelectorNotParsable', () async {
+    final paths = await initContext({
+      'component.dart': r'''
+      import 'package:angular/angular.dart';
+
+      @Component(selector: '[aaa*bbb]', template: '')
+      class Example {
+      }
+      ''',
+    });
+    expect(channel.errors[paths['component.dart']]?.length, 1);
+    expect(channel.errors[paths['component.dart']]?[0].code, AngularWarningCode.cannotParseSelector.name);
+  });
 }
 
 class SpyCommunicationChanngel implements PluginCommunicationChannel {
